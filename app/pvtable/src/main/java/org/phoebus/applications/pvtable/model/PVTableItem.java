@@ -381,6 +381,9 @@ public class PVTableItem
             {
                 the_pv.write(Double.parseDouble(new_value));
             }
+            else if (pv_type instanceof VBoolean) {
+                the_pv.write(new_value);
+            }
             else if (pv_type instanceof VEnum || pv_type instanceof EnumProvider)
             { // Value is displayed as "6 =
               // 1 second"
