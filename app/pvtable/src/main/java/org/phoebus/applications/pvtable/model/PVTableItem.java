@@ -32,7 +32,6 @@ import org.epics.vtype.VString;
 import org.epics.vtype.VType;
 import org.phoebus.applications.pvtable.Settings;
 import org.phoebus.core.vtypes.DescriptionProvider;
-import org.phoebus.core.vtypes.EnumProvider;
 import org.phoebus.core.vtypes.VTypeHelper;
 import org.phoebus.pv.PV;
 import org.phoebus.pv.PVPool;
@@ -309,14 +308,14 @@ public class PVTableItem
           
             if (copy instanceof VEnum) {
                 enumDisplay = ((VEnum) copy).getDisplay();
+                if(enumDisplay != null) {
+                    final List<String> options = enumDisplay.getChoices();
+                    valueOptions = options.toArray(new String[options.size()]);
+                }
             }
-            else if(copy instanceof EnumProvider) {
-                //Add EnumProvider to manage ["ZNAM", "ONAM"] for VBoolean 
-                enumDisplay = ((EnumProvider)copy).getEnumDisplay();
-            }
-            if(enumDisplay != null) {
-                final List<String> options = enumDisplay.getChoices();
-                valueOptions = options.toArray(new String[options.size()]);
+            else if(copy instanceof VBoolean) {
+                //TODO manage ["ZNAM", "ONAM"] for VBoolean 
+                valueOptions = new String[]{"false","true"};
             }
         }
         return valueOptions;
@@ -328,9 +327,6 @@ public class PVTableItem
         final VType copy = value;
         if (copy instanceof VEnum) {
             index = ((VEnum) copy).getIndex();
-        }
-        else if(copy instanceof EnumProvider) {
-            index = ((EnumProvider)copy).getIndex();
         }
         else if(copy instanceof VBoolean) {//To manage index for ZNAM & ONAM value
             index =  ((VBoolean)copy).getValue() ? 1 : 0;
@@ -384,7 +380,7 @@ public class PVTableItem
             else if (pv_type instanceof VBoolean) {
                 the_pv.write(new_value);
             }
-            else if (pv_type instanceof VEnum || pv_type instanceof EnumProvider)
+            else if (pv_type instanceof VEnum)
             { // Value is displayed as "6 =
               // 1 second"
                 // Locate the initial index, ignore following text
