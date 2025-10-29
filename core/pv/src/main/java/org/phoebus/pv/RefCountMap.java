@@ -13,7 +13,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -137,7 +139,7 @@ public class RefCountMap<K, E>
             return refs;
         }
     }
-
+   
     /** @return Entries in map */
     public Collection<ReferencedEntry<E>> getEntries()
     {
@@ -145,5 +147,37 @@ public class RefCountMap<K, E>
         {
             return Collections.unmodifiableCollection(map.values());
         }
+    }
+    
+    /**
+     * @param entry
+     * @return  the Key for a given entry based on hashcode
+     */
+    public K getReferencedEntryKey(E entry) {
+        K entryKey = null;
+        Set<Entry<K, ReferencedEntry<E>>> entrySet = map.entrySet();
+        for(Entry<K, ReferencedEntry<E>> ref : entrySet) {
+            if(ref.getValue().getEntry().hashCode() == entry.hashCode()) {
+                entryKey = ref.getKey();
+                break;
+            }
+        }
+        return entryKey;
+    }
+    
+    /**
+     * @param entry
+     * @return  the Key for a given entry based on hashcode
+     */
+    public ReferencedEntry<E> getReferencedEntry(E entry) {
+        ReferencedEntry<E> refEntry = null;
+        Collection<ReferencedEntry<E>> values = map.values();
+        for(ReferencedEntry<E> ref : values) {
+            if(ref.getEntry().hashCode() == entry.hashCode()) {
+                refEntry = ref;
+                break;
+            }
+        }
+        return refEntry;
     }
 }

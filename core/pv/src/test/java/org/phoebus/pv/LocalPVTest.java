@@ -7,16 +7,6 @@
  ******************************************************************************/
 package org.phoebus.pv;
 
-import io.reactivex.rxjava3.disposables.Disposable;
-import org.epics.vtype.VDouble;
-import org.epics.vtype.VType;
-import org.junit.jupiter.api.Test;
-import org.phoebus.pv.loc.LocalPVFactory;
-import org.phoebus.pv.loc.ValueHelper;
-
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -24,6 +14,19 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
+
+import java.util.Collection;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.epics.vtype.VDouble;
+import org.epics.vtype.VType;
+import org.junit.jupiter.api.Test;
+import org.phoebus.pv.RefCountMap.ReferencedEntry;
+import org.phoebus.pv.loc.LocalPVFactory;
+import org.phoebus.pv.loc.ValueHelper;
+
+import io.reactivex.rxjava3.disposables.Disposable;
 
 /**
  * @author Kay Kasemir
@@ -148,6 +151,36 @@ public class LocalPVTest {
 
         sub.dispose();
         PVPool.releasePV(pv);
+    }
+    
+    /**
+     * Test LocalPV when setting local as default datasource
+     */
+    @Test
+    public void testRelasePV() throws Exception {
+        
+        Collection<ReferencedEntry<PV>> pvReferences = PVPool.getPVReferences();
+     
+        int initSize = pvReferences != null ? pvReferences.size() : 0;
+        //Test for Write action on default pv different from ca see PR
+        //https://github.com/ControlSystemStudio/phoebus/pull/3412
+        //Force default data source to loc://
+        PVPool.default_type = LocalPVFactory.TYPE;
+        String pv_name = "my_pv";
+        
+        final PV pv = PVPool.getPV(pv_name);
+        
+        pvReferences = PVPool.getPVReferences();
+        
+        //Check that there is 1 reference
+        assertThat(pvReferences.size() , equalTo(initSize + 1));
+        
+        PVPool.releasePV(pv);
+        
+        pvReferences = PVPool.getPVReferences();
+        
+       //Check that there is no reference anymore
+        assertThat(pvReferences.size() , equalTo(initSize));
     }
 
 }

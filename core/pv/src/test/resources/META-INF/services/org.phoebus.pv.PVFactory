@@ -1,1 +1,2 @@
 org.phoebus.pv.disconnected.DisconnectedPVFactory
+org.phoebus.pv.test.TestPVFactory

@@ -178,6 +178,11 @@ public class PVPool
      *  Otherwise, two threads concurrently looking for a new PV would both add it.
      */
     final private static RefCountMap<String, PV> pool = new RefCountMap<>();
+    /**
+     * Manage Factory the provide PV named different of the core name
+     * Map<PVName,coreName>
+     */
+    final private static Map<String, String> coreNameMap = new HashMap<>();
 
     /** Singleton */
     private PVPool()
@@ -210,8 +215,25 @@ public class PVPool
         if (factory == null)
             throw new Exception(_name + " has unknown PV type '" + type_name.type + "'");
 
-        final String core_name = factory.getCoreName(_name);
-        final ReferencedEntry<PV> ref = pool.createOrGet(core_name, () -> createPV(factory, _name, type_name.name));
+        String core_name = factory.getCoreName(_name);
+        
+        //Check if there is an existing PV which named different from core name
+        final String uniqueKey = !_name.startsWith(type_name.type + "://") ? type_name.type + "://" + _name : _name;
+        //Some factory not manage a unique prefix such as ca and pva and create twice PV for ca://pv_name and pv_name
+        if(!core_name.startsWith(type_name.type + "://")){
+            core_name = factory.getCoreName(uniqueKey);
+        }
+       
+        if(coreNameMap.containsKey(uniqueKey)) {
+            core_name = coreNameMap.get(uniqueKey);
+        }
+        
+        final ReferencedEntry<PV> ref = pool.createOrGet(core_name, () -> createPV(factory, _name , type_name.name));
+        String pvName = ref.getEntry().getName();
+        //Add the corresponding core_name for a given pvName
+        if(!coreNameMap.containsKey(uniqueKey) && !core_name.equals(uniqueKey) && !core_name.equals(pvName)) {
+            coreNameMap.put(uniqueKey,core_name);
+        }
         logger.log(Level.CONFIG, () -> "PV '" + ref.getEntry().getName() + "' references: " + ref.getReferences());
         return ref.getEntry();
     }
@@ -232,14 +254,28 @@ public class PVPool
     /** @param pv PV to be released */
     public static void releasePV(final PV pv)
     {
-        final int references = pool.release(pv.getName());
-        if (references <= 0)
-        {
-            pv.close();
-            logger.log(Level.CONFIG, () -> "PV '" + pv.getName() + "' closed");
+        //First find the pv
+        String entryKey = pool.getReferencedEntryKey(pv);
+        if(entryKey != null) {
+            final int references = pool.release(entryKey);
+            if (references <= 0)
+            {
+                pv.close();
+                if(coreNameMap.containsKey(entryKey)) {
+                    coreNameMap.remove(entryKey);
+                }
+                logger.log(Level.CONFIG, () -> "PV '" + pv.getName() + "' closed");
+            }
+            else
+                logger.log(Level.CONFIG, () -> "PV '" + pv.getName() + "' remaining references: " + references);
         }
-        else
-            logger.log(Level.CONFIG, () -> "PV '" + pv.getName() + "' remaining references: " + references);
+        else {
+            logger.log(Level.WARNING, "No reference found for " + pv.getName());
+        }
+    }
+    
+    public static ReferencedEntry<PV> getReferenceEntry(final PV pv) {
+        return pool.getReferencedEntry(pv);
     }
 
     /** @return PVs currently in the pool with reference count information */
